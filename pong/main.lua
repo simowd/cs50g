@@ -114,6 +114,9 @@ function love.load()
     -- 3. 'play' (the ball is in play, bouncing between paddles)
     -- 4. 'done' (the game is over, with a victor, ready for restart)
     gameState = 'start'
+
+    -- variable that controls that the second player is a cpu, by deafult is false
+    isCpu = false
 end
 
 --[[
@@ -242,14 +245,33 @@ function love.update(dt)
     end
 
     -- player 2
-    if love.keyboard.isDown('up') then
-        player2.dy = -PADDLE_SPEED
-    elseif love.keyboard.isDown('down') then
-        player2.dy = PADDLE_SPEED
+    -- First ask is the paddle is user controlled
+    if isCpu == false then
+        if love.keyboard.isDown('up') then
+            player2.dy = -PADDLE_SPEED
+        elseif love.keyboard.isDown('down') then
+            player2.dy = PADDLE_SPEED
+        else
+            player2.dy = 0
+        end
+    -- If it is cpu controlled follow the ball
     else
-        player2.dy = 0
+        -- Only move if the game state is play
+        if gameState == 'play' then
+            -- only move if the ball is moving towards player 2 paddle and the ball is 1/4 to the right of the screen border
+            if ball.dx > 0 and ball.x > VIRTUAL_WIDTH/4 then
+                if ball.y < player2.y + 10 - 12 then
+                    player2.dy = -PADDLE_SPEED
+                elseif ball.y > player2.y + 10 + 12 then
+                    player2.dy = PADDLE_SPEED
+                elseif ball.y > player2.y + 10 - 12 and ball.y < player2.y + 10 + 12 then
+                    player2.dy = 0
+                end
+            else
+                player2.dy = 0
+            end
+        end   
     end
-
     -- update our ball based on its DX and DY only if we're in play state;
     -- scale the velocity by dt so movement is framerate-independent
     if gameState == 'play' then
@@ -297,6 +319,15 @@ function love.keypressed(key)
             end
         end
     end
+
+    -- toggle the cpu mode
+    if key == 'c' then
+        -- check if the game is on the main menu or about to be restarted
+        if gameState == 'done' or gameState == 'start' then
+            isCpu = not isCpu
+            sounds['score']:play()
+        end
+    end
 end
 
 --[[
@@ -309,12 +340,16 @@ function love.draw()
 
     love.graphics.clear(40/255, 45/255, 52/255, 255/255)
     
+    -- message to show if the cpu is on or off
+    message = isCpu == true and 'Press C to toggle CPU mode - on' or 'Press C to toggle CPU mode - false'
+
     -- render different things depending on which part of the game we're in
     if gameState == 'start' then
         -- UI messages
         love.graphics.setFont(smallFont)
         love.graphics.printf('Welcome to Pong!', 0, 10, VIRTUAL_WIDTH, 'center')
         love.graphics.printf('Press Enter to begin!', 0, 20, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf(message, 0, 30, VIRTUAL_WIDTH, 'center')
     elseif gameState == 'serve' then
         -- UI messages
         love.graphics.setFont(smallFont)
@@ -330,6 +365,7 @@ function love.draw()
             0, 10, VIRTUAL_WIDTH, 'center')
         love.graphics.setFont(smallFont)
         love.graphics.printf('Press Enter to restart!', 0, 30, VIRTUAL_WIDTH, 'center')
+        love.graphics.printf(message, 0, 40, VIRTUAL_WIDTH, 'center')
     end
 
     -- show the score before ball is rendered so it can move over the text
